@@ -1,6 +1,6 @@
 #! /usr/bin/env factor
 
-USING: combinators command-line namespaces locals locals.types io io.encodings.utf8 io.launcher math prettyprint sequences splitting system kernel ;
+USING: combinators command-line namespaces locals locals.types io io.encodings.utf8 io.launcher math prettyprint sequences sets splitting system kernel ;
 
 IN: arg-filter
 
@@ -19,8 +19,14 @@ IN: arg-filter
 : last-part ( str -- str )
     "/" split last ;
 
+: remove-star ( str -- str )
+    [ CHAR: * = ] trim-head ;
+
+: remove-spaces ( str -- str )
+    [ 32 = ] trim ;
+
 : git-branch-cmd ( -- seq )
-    { "git" "branch" "-r" } utf8 [ lines ] with-process-reader ;
+    { "git" "branch" "-a" } utf8 [ lines ] with-process-reader ;
 
 :: git-checkout-cmd ( branch -- seq )
     { "git" "checkout" branch } utf8 [ lines ] with-process-reader ;
@@ -31,4 +37,4 @@ IN: arg-filter
       [  s first git-checkout-cmd [ print ] each ] } cond ;
 
 
-validate-args [ git-branch-cmd [ last-part ] map [ contains-arg? ] filter eval-results ] [ "Bye!" print ] if
+validate-args [ git-branch-cmd [ remove-star remove-spaces last-part ] map [ contains-arg? ] filter members eval-results ] [ "Bye!" print ] if
