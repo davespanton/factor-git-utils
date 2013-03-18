@@ -1,8 +1,11 @@
 #! /usr/bin/env factor
 
-USING: combinators command-line namespaces locals locals.types io io.encodings.utf8 io.launcher math sequences sets splitting system kernel ;
+! Copyright (C) 2013 Dave Spanton.
+! See http://factorcode.org/license.txt for BSD license.
 
-IN: arg-filter
+USING: combinators command-line continuations namespaces locals locals.types io io.encodings.utf8 io.launcher math sequences sets splitting system kernel ;
+
+IN: git-checkout-match
 
 : validate-args ( -- t )
     [let command-line get :> args
@@ -26,7 +29,7 @@ IN: arg-filter
     [ 32 = ] trim ;
 
 : git-branch-cmd ( -- seq )
-    { "git" "branch" "-a" } utf8 [ lines ] with-process-reader ;
+    [ { "git" "branch" "-a" } utf8 [ lines ] with-process-reader ] [ 0 exit ] recover ;
 
 :: git-checkout-cmd ( branch -- seq )
     { "git" "checkout" branch } utf8 [ lines ] with-process-reader ;
@@ -39,8 +42,10 @@ IN: arg-filter
 : trim-input ( str -- str )
     remove-star remove-spaces last-part ;
 
+: run ( -- )
+     validate-args
+     [ git-branch-cmd [ trim-input ] map [ contains-arg? ] filter members eval-results ]
+     [ "Bye!" print ]
+     if ;
 
-validate-args
-  [ git-branch-cmd [ trim-input ] map [ contains-arg? ] filter members eval-results ]
-  [ "Bye!" print ]
-if
+MAIN: run
