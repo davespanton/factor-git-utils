@@ -5,7 +5,7 @@ _These only exist to help me learn Factor. They're not particularly tested and q
 
 ### Usage
 
-Run from a git repository passing a partial (or whole) name of a local or remote branch as the argument.
+Run from a git repository passing the partial name of a local or remote branch as the argument.
 
 For example:
 
@@ -30,20 +30,22 @@ Load the Factor listener and:
 
 Add the project's location to Factor's vocab root
 
-  USE: vocabs.loader
-  "path/to/project" add-vocab-root
+```factor
+USE: vocabs.loader
+"path/to/project" add-vocab-root
+```
 
 and then run:
 
-  USING: tools.deploy git-checkout-match
-  "git-checkout-match" deploy
+```factor
+USING: tools.deploy git-checkout-match ;
+"git-checkout-match" deploy
+```
 
 This should create a binary called git-checkout-match in FACTOR_ROOT/git-checkout-match/ . Put this somewhere on your path.
 
 **Script**
 
-_This approach has only been tried on Unix systems and follows the instruction from the Scripting Cookbook in the Factor documentation_
-
-This approach is slower but easier.
+_This approach has only been tried on Unix systems and follows the instruction from the [Scripting Cookbook](http://docs.factorcode.org:8080/content/article-cookbook-scripts.html) in the Factor documentation._
 
 Copy git-checkout-match.factor to somewhere on your path and rename it to git-checkout-match.
