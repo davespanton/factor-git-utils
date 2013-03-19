@@ -13,7 +13,7 @@ For example:
 
 Will checkout master (if no other branches contain 'mast')
 
-If a single match is found the branch will be checked out. If that match only exists as a remote branch, them a new local branch of the same name will be created
+If a single match is found the branch will be checked out. If that match only exists as a remote branch, then a new local branch of the same name will be created
 to track the remote version and it will be checked out.
 
 If no matches or multiple matches are found, you will be informed.
