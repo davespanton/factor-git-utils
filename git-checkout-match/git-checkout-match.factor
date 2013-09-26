@@ -1,51 +1,86 @@
-#! /usr/bin/env factor
-
 ! Copyright (C) 2013 Dave Spanton.
 ! See http://factorcode.org/license.txt for BSD license.
 
-USING: combinators command-line continuations namespaces locals locals.types io io.encodings.utf8 io.launcher math sequences sets splitting system kernel ;
+USING: kernel accessors arrays grouping locals sequences sequences.deep sequences.extras math math.functions byte-arrays prettyprint core-foundation.launch-services images.loader images.http images.loader.cocoa ;
 
-IN: git-checkout-match
+IN: imaging
 
-: validate-args ( -- t )
-    [let command-line get :> args
-        { { [ args length 0 = ] [ "No arguments passed.\n" print f ] }
-          { [ args length 1 = ] [ t ] }
-          { [ args length 1 > ] [ "More than one argument passed.\n" print f ] } } cond ] ;
+: >pixels ( image -- arr )
+    4 group ;
 
-: first-arg ( -- str )
-    command-line get dup length 1 = [ first ] [ drop "" ] if ;
+: rows ( image -- arr )
+    dup bitmap>> >pixels swap dim>> first group ;
 
-: contains-arg? ( str -- ? )
-    first-arg swap subseq? ;
+: >bitmap ( arr -- bytes )
+    flatten >byte-array ;
 
-: last-part ( str -- str )
-    "/" split last ;
+: update-bitmap ( image bytes w h -- image )
+    [ >bitmap >>bitmap ] 2dip 2array >>dim ;
 
-: remove-star ( str -- str )
-    [ CHAR: * = ] trim-head ;
+:: >YUV ( r g b -- yuv )
+    r 0.257 * g 0.504 * + b 0.098 * + 16 +
+    r -0.148 * g 0.291 *  - b 0.439 * + 128 +
+    r 0.439 * g 0.368 * - b 0.071 * - 128 +
+    3array ;
 
-: remove-spaces ( str -- str )
-    [ 32 = ] trim ;
+: compare-pixels ( a a -- x )
+    [ first3 >YUV rest ] bi@ [ - abs sq ] 2map-sum ;
 
-: git-branch-cmd ( -- seq )
-    [ { "git" "branch" "-a" } utf8 [ lines ] with-process-reader ] [ 0 exit ] recover ;
+: straight-compare-pixels ( a a -- x )
+    [ - abs ] 2map-sum ;
 
-:: git-checkout-cmd ( branch -- seq )
-    { "git" "checkout" branch } utf8 [ lines ] with-process-reader ;
+: columns ( arr -- arr )
+    [ 32 group ] map flip ;
 
-:: eval-results ( s -- )
-    { { [ s length 0 = ] [ "No matching branches found.\n" print ] }
-      { [ s length 1 > ] [ "Several results found:\n" print s [ print ] each ] }
-      [  s first git-checkout-cmd [ print ] each ] } cond ;
+: stripe ( image -- arr )
+    rows columns ;
 
-: trim-input ( str -- str )
-    remove-star remove-spaces last-part ;
+: un-stripe ( arr -- barr )
+    flip flatten >byte-array ;
+
+: neighbours ( arr arr -- arr arr )
+    [ last ] map swap [ first ] map ;
+
+:: compare-to-left ( arr -- arr )
+   arr first length :> l
+   arr dup cartesian-product
+   [ :> i [ :> j i j =
+            [ drop l 1024 * ]
+            [ first2 neighbours [ compare-pixels ] 2map sum ]
+            if ]
+       map-index ] map-index ;
+
+: find-left-index ( arr -- n )
+    [ infimum ] map dup supremum swap index ;
+
+: right-of-index ( n arr -- n n )
+    [ nth ] with map dup infimum [ swap index ] keep ;
+
+:: position-of ( comparison -- arr )
+    comparison
+    [ 1array :> out-order! :> row 0 :> score!
+      [ out-order length comparison length < ]
+      [ out-order last comparison right-of-index
+        score + score!
+        out-order swap suffix out-order! ]
+      while { out-order score } ] map-index ;
+
+: stripe-order ( arr -- arr )
+    dup find-left-index swap position-of dupd remove-nth swap
+    prefix ;
+
+: arrange-stripes ( arr arr -- arr )
+    swap nths  ;
+
+: best-route ( arr -- arr )
+    [ second ] infimum-by first ;
+
+: unshred ( image -- image )
+    dup stripe dup compare-to-left position-of best-route arrange-stripes
+    un-stripe >>bitmap ;
 
 : run ( -- )
-     validate-args
-     [ git-branch-cmd [ trim-input ] map [ contains-arg? ] filter members eval-results ]
-     [ "Bye!" print ]
-     if ;
+    "~/shredded.png" load-image unshred  "/tmp/unshredded.png" kUTTypePNG
+    save-ns-image ;
 
 MAIN: run
